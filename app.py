@@ -1,356 +1,241 @@
-import streamlit as st
+import math
 import time
-import pandas as pd
-import networkx as nx
-import matplotlib.pyplot as plt
 
+import streamlit as st
 
-st.set_page_config(page_title="DAA Algorithm Simulator", layout="wide")
+st.set_page_config(page_title="Binary Search Simulator", page_icon="🔍", layout="wide")
 
+DEFAULT_ARRAY = "2, 5, 8, 12, 16, 23, 38, 56, 72, 91"
+MAX_ITEMS = 30
+SPEEDS = {"Slow": 1.6, "Medium": 1.0, "Fast": 0.45}
 
-st.markdown("""
+st.markdown(
+    """
 <style>
-    .stack-element {
-        background-color: #4CAF50; color: white; padding: 15px; 
-        margin: 5px auto; text-align: center; border-radius: 5px; 
-        width: 200px; font-weight: bold; font-size: 18px;
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-    }
-    .stack-container {
-        border-left: 4px solid #333; border-right: 4px solid #333; 
-        border-bottom: 4px solid #333; padding: 10px; width: 240px; 
-        margin: 0 auto; min-height: 300px; display: flex; 
-        flex-direction: column-reverse;
-    }
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&display=swap');
+
+html, body, [class*="css"], .stApp { font-family: 'DM Sans', system-ui, sans-serif; color: #34303a; }
+#MainMenu, footer { visibility: hidden; }
+.block-container { padding-top: 2.2rem; max-width: 1150px; }
+
+.hero { text-align: center; padding: 6px 0 22px; border-bottom: 2px dotted #e7a7b6; margin-bottom: 26px; }
+.hero .stamp { display: inline-block; font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .18em;
+  text-transform: uppercase; background: #e1ecdf; color: #4b6a50; border: 1.5px dashed #7c9a80;
+  border-radius: 999px; padding: 4px 16px; transform: rotate(-2deg); }
+.hero h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 40px; margin: 14px 0 6px; line-height: 1.15; }
+.hero p { color: #6d6672; margin: 0 auto; max-width: 620px; font-size: 16px; }
+
+.label { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #b04e68; margin: 0 0 8px; }
+
+.card { background: #fffafb; border: 1.5px dashed #e7a7b6; border-radius: 18px; padding: 16px 20px; margin: 14px 0; }
+.card p, .card li { font-size: 14.5px; line-height: 1.6; margin: 3px 0; }
+.card ul { padding-left: 18px; margin: 4px 0; }
+
+.stage { background: #fff; border: 1.5px solid #f0e4e8; border-radius: 18px; padding: 20px 16px 12px; min-height: 150px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.cell { text-align: center; min-width: 54px; }
+.box { padding: 14px 8px; border-radius: 12px; font-weight: 700; font-size: 18px; border: 2px solid transparent; transition: all .2s; }
+.box.out { background: #f4f1f3; color: #b5afb9; }
+.box.active { background: #e1ecdf; color: #34303a; border-color: #7c9a80; }
+.box.mid { background: #b04e68; color: #fff; border-color: #b04e68; transform: translateY(-4px); box-shadow: 0 6px 14px rgba(176,78,104,.28); }
+.box.found { background: #4b6a50; color: #fff; border-color: #4b6a50; transform: translateY(-4px); box-shadow: 0 6px 14px rgba(75,106,80,.3); }
+.idx { font-family: 'DM Mono', monospace; font-size: 11px; color: #9a94a0; margin-top: 6px; }
+.ptr { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: #b04e68; height: 18px; letter-spacing: .08em; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 14px; font-size: 13px; color: #6d6672; }
+.legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+.legend .l-active::before { background: #e1ecdf; border: 1.5px solid #7c9a80; }
+.legend .l-mid::before { background: #b04e68; }
+.legend .l-out::before { background: #f4f1f3; border: 1px solid #ddd6dc; }
+.legend .l-found::before { background: #4b6a50; }
+
+.log { background: #fff; border: 1.5px solid #f0e4e8; border-radius: 16px; padding: 10px 16px; margin-top: 16px; max-height: 300px; overflow-y: auto; }
+.log .line { padding: 6px 0; border-bottom: 1px dotted #eadfe3; font-size: 14.5px; }
+.log .line:last-child { border-bottom: none; }
+.log .note { color: #6d6672; padding-left: 14px; }
+
+.result { border-radius: 16px; padding: 14px 20px; margin-top: 16px; font-size: 16px; }
+.result.ok { background: #e1ecdf; border: 1.5px solid #7c9a80; }
+.result.no { background: #f8e3e7; border: 1.5px solid #e7a7b6; }
+
+.stButton > button, .stFormSubmitButton > button { width: 100%; border-radius: 999px; font-weight: 700; padding: .55rem 1rem; }
+.foot { text-align: center; font-family: 'DM Mono', monospace; font-size: 12px; color: #9a94a0; margin-top: 36px;
+  border-top: 2px dotted #e7a7b6; padding-top: 14px; }
+.foot a { color: #b04e68; text-decoration: none; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
-st.sidebar.title("DAA Simulator")
-st.sidebar.markdown("Navigate through the algorithms using the options below:")
-option = st.sidebar.radio("Select Topic", [
-                          "Stack (Data Structure)", "Binary Search", "Kruskal's Algorithm"])
+def parse_array(text):
+    parts = [p.strip() for p in text.replace(";", ",").split(",") if p.strip()]
+    if not parts:
+        raise ValueError("Please enter at least one number.")
+    if len(parts) > MAX_ITEMS:
+        raise ValueError(f"Please use at most {MAX_ITEMS} numbers so the boxes fit on screen.")
+    try:
+        return sorted(int(p) for p in parts)
+    except ValueError:
+        raise ValueError("Use whole numbers separated by commas, for example: 2, 5, 8, 12.")
 
 
-# ==========================================
-# 1. STACK SIMULATOR
-# ==========================================
-if option == "Stack (Data Structure)":
-    st.title("Stack Simulator (LIFO)")
-    st.markdown("Demonstrates the **Push**, **Pop**, and **Peek** operations.")
-
-    if 'stack' not in st.session_state:
-        st.session_state.stack = []
-
-    col1, col2, col3 = st.columns([1, 1, 2])
-
-    with col1:
-        st.subheader("Controls")
-        val = st.text_input("Enter a value to Push:")
-        if st.button("Push"):
-            if val:
-                st.session_state.stack.append(val)
-            else:
-                st.warning("Please enter a value!")
-
-        if st.button("Pop"):
-            if len(st.session_state.stack) > 0:
-                popped = st.session_state.stack.pop()
-                st.success(f"Popped element: {popped}")
-            else:
-                st.error("Stack Underflow! Stack is empty.")
-
-        if st.button("Peek"):
-            if len(st.session_state.stack) > 0:
-                st.info(f"Top element is: {st.session_state.stack[-1]}")
-            else:
-                st.warning("Stack is empty.")
-
-        if st.button("Clear Stack"):
-            st.session_state.stack = []
-
-    with col2:
-        st.subheader("Visualization")
-
-        st.write("**Top of Stack**")
-        stack_html = "<div class='stack-container'>"
-        for item in st.session_state.stack:
-            stack_html += f"<div class='stack-element'>{item}</div>"
-        stack_html += "</div>"
-        st.markdown(stack_html, unsafe_allow_html=True)
-        st.write("**Bottom of Stack**")
-
-    with col3:
-        st.subheader("Complexity & Details")
-        st.info("""
-        **Time Complexity:**
-        - Push: O(1)
-        - Pop: O(1)
-        - Peek: O(1)
-        
-        **Space Complexity:**
-        - O(N) where N is the number of elements in the stack.
-        
-        **Concept:**
-        Stack follows the Last-In-First-Out (LIFO) principle. The element inserted last is the first one to be removed.
-        """)
+def draw_array(arr, low, high, mid, found=False):
+    cells = []
+    for i, value in enumerate(arr):
+        if found and i == mid:
+            css = "found"
+        elif i == mid:
+            css = "mid"
+        elif low <= i <= high:
+            css = "active"
+        else:
+            css = "out"
+        tags = []
+        if low <= high:
+            if i == low:
+                tags.append("L")
+            if i == mid:
+                tags.append("M")
+            if i == high:
+                tags.append("H")
+        pointer = "·".join(tags) if tags else "&nbsp;"
+        cells.append(
+            f"<div class='cell'><div class='box {css}'>{value}</div>"
+            f"<div class='idx'>{i}</div><div class='ptr'>{pointer}</div></div>"
+        )
+    legend = (
+        "<div class='legend'><span class='l-active'>Still possible</span>"
+        "<span class='l-mid'>Middle (being checked)</span>"
+        "<span class='l-out'>Ruled out</span><span class='l-found'>Found</span></div>"
+    )
+    return f"<div class='stage'><div class='row'>{''.join(cells)}</div>{legend}</div>"
 
 
-# ==========================================
-# 2. BINARY SEARCH SIMULATOR
-# ==========================================
-elif option == "Binary Search":
-    st.title("Binary Search Simulator")
+def draw_log(lines):
+    body = "".join(f"<div class='line{' note' if l.startswith('↳') else ''}'>{l}</div>" for l in lines)
+    return f"<div class='log'>{body}</div>"
+
+
+st.markdown(
+    """
+<div class="hero">
+  <span class="stamp">Unit 2 · Divide and Conquer</span>
+  <h1>Binary Search Simulator</h1>
+  <p>Watch the search space shrink by half at every step. Type your own numbers, pick a target and press start.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+left, right = st.columns([1, 2], gap="large")
+
+with left:
+    st.markdown("<p class='label'>Your input</p>", unsafe_allow_html=True)
+    with st.form("inputs"):
+        arr_text = st.text_input("Numbers (comma-separated)", DEFAULT_ARRAY)
+        target = st.number_input("Number to find", value=23, step=1)
+        speed_name = st.select_slider("Animation speed", options=list(SPEEDS), value="Medium")
+        start = st.form_submit_button("Start simulation", type="primary")
+
     st.markdown(
-        "An efficient array search algorithm. Works on **sorted arrays** using a divide and conquer approach.")
+        """
+<div class="card">
+  <p class="label">How it works</p>
+  <ul>
+    <li>The numbers are sorted for you first.</li>
+    <li>Look at the <b>middle</b> number (M).</li>
+    <li>If it is smaller than the target, drop the left half. If it is bigger, drop the right half.</li>
+    <li>Repeat until it is found or nothing is left.</li>
+  </ul>
+  <p><b>L</b> = low, <b>M</b> = mid, <b>H</b> = high</p>
+</div>
+<div class="card">
+  <p class="label">Complexity</p>
+  <ul>
+    <li>Best case: O(1) (found at the middle)</li>
+    <li>Average and worst case: O(log n)</li>
+    <li>Space: O(1) (iterative)</li>
+  </ul>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-    col1, col2 = st.columns([1, 2])
+with right:
+    st.markdown("<p class='label'>Live simulation</p>", unsafe_allow_html=True)
+    visual = st.empty()
+    log_box = st.empty()
+    result_box = st.empty()
 
-    with col1:
-        st.subheader("User Input")
-        arr_input = st.text_input(
-            "Enter comma-separated integers:", "2, 5, 8, 12, 16, 23, 38, 56, 72, 91")
-        target_input = st.number_input(
-            "Target Value to Search:", value=23, step=1)
-        start_btn = st.button("Start Simulation")
+    try:
+        arr = parse_array(arr_text)
+        error = None
+    except ValueError as exc:
+        arr, error = [], str(exc)
 
-        st.markdown("---")
-        st.subheader("Complexity")
-        st.info("""
-        **Time Complexity:**
-        - Best Case: O(1) (Found at middle)
-        - Average / Worst Case: O(log N)
-        
-        **Space Complexity:**
-        - O(1) (Iterative approach)
-        """)
+    if error:
+        st.error(error)
+    elif not start:
+        visual.markdown(draw_array(arr, 0, len(arr) - 1, -1), unsafe_allow_html=True)
+        log_box.markdown(
+            "<div class='log'><div class='line note'>Press <b>Start simulation</b> to begin.</div></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        target = int(target)
+        delay = SPEEDS[speed_name]
+        low, high, step, found_at = 0, len(arr) - 1, 0, None
+        logs = [f"Sorted array: {arr}", f"Looking for <b>{target}</b> among {len(arr)} numbers."]
+        log_box.markdown(draw_log(logs), unsafe_allow_html=True)
 
-    with col2:
-        st.subheader("Live Simulation Stages")
-        visual_placeholder = st.empty()
-        log_placeholder = st.empty()
+        while low <= high:
+            step += 1
+            mid = (low + high) // 2
+            visual.markdown(draw_array(arr, low, high, mid), unsafe_allow_html=True)
+            logs.append(f"<b>Step {step}</b>: low = {low}, high = {high}, mid = {mid}, so check <b>{arr[mid]}</b>")
+            log_box.markdown(draw_log(logs), unsafe_allow_html=True)
+            time.sleep(delay)
 
-        if start_btn:
-            try:
+            if arr[mid] == target:
+                found_at = mid
+                visual.markdown(draw_array(arr, low, high, mid, found=True), unsafe_allow_html=True)
+                logs.append(f"✓ {arr[mid]} equals {target}. Found at index {mid}.")
+                log_box.markdown(draw_log(logs), unsafe_allow_html=True)
+                break
+            if arr[mid] < target:
+                logs.append(f"↳ {arr[mid]} is smaller than {target}, so drop the left half. low becomes {mid + 1}.")
+                low = mid + 1
+            else:
+                logs.append(f"↳ {arr[mid]} is bigger than {target}, so drop the right half. high becomes {mid - 1}.")
+                high = mid - 1
+            log_box.markdown(draw_log(logs), unsafe_allow_html=True)
+            time.sleep(delay * 0.6)
 
-                arr = [int(x.strip()) for x in arr_input.split(',')]
-                arr.sort()
-                target = int(target_input)
+        if found_at is None:
+            visual.markdown(draw_array(arr, 0, -1, -1), unsafe_allow_html=True)
+            logs.append(f"✗ Nothing left to check. {target} is not in the array.")
+            log_box.markdown(draw_log(logs), unsafe_allow_html=True)
+            result_box.markdown(
+                f"<div class='result no'><b>{target} is not in the array.</b> Checked {step} "
+                f"number{'s' if step != 1 else ''} before the search space ran out.</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            result_box.markdown(
+                f"<div class='result ok'><b>Found {target} at index {found_at}</b> in {step} "
+                f"step{'s' if step != 1 else ''}.</div>",
+                unsafe_allow_html=True,
+            )
 
-                low = 0
-                high = len(arr) - 1
-                found = False
+        worst = math.floor(math.log2(len(arr))) + 1
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Steps taken", step)
+        c2.metric("Most steps possible here", worst)
+        c3.metric("Linear search could need", len(arr))
 
-                logs = [
-                    f"**Initial Sorted Array:** {arr}", "Starting Search..."]
-
-                def draw_array(arr, l, h, m, is_found=False):
-                    html = ""
-                    for i, val in enumerate(arr):
-                        color = "#e0e0e0"  # Eliminated
-                        font_color = "black"
-                        if i == m:
-                            color = "#4CAF50" if is_found else "#FF9800"  # Green if found, Orange if mid
-                            font_color = "white"
-                        elif l <= i <= h:
-                            color = "#2196F3"  # Blue for active search space
-                            font_color = "white"
-
-                        html += f"<div style='display:inline-block; margin:5px; padding:15px 20px; background-color:{color}; color:{font_color}; font-weight:bold; border-radius:5px; font-size:18px;'>{val}</div>"
-                    return html
-
-                step = 1
-                while low <= high:
-                    mid = (low + high) // 2
-
-                    visual_placeholder.markdown(draw_array(
-                        arr, low, high, mid), unsafe_allow_html=True)
-                    logs.append(
-                        f"**Step {step}:** Low={low}, High={high}, Mid={mid} (Value: {arr[mid]})")
-                    log_placeholder.markdown(
-                        "<br>".join(logs), unsafe_allow_html=True)
-                    time.sleep(1.5)  # Pause for animation
-
-                    if arr[mid] == target:
-                        visual_placeholder.markdown(draw_array(
-                            arr, low, high, mid, True), unsafe_allow_html=True)
-                        logs.append(
-                            f"✅ **Target {target} found at index {mid}!**")
-                        log_placeholder.markdown(
-                            "<br>".join(logs), unsafe_allow_html=True)
-                        found = True
-                        break
-                    elif arr[mid] < target:
-                        logs.append(
-                            f"↳ {arr[mid]} < {target}. Discarding left half.")
-                        low = mid + 1
-                    else:
-                        logs.append(
-                            f"↳ {arr[mid]} > {target}. Discarding right half.")
-                        high = mid - 1
-
-                    step += 1
-                    time.sleep(1)
-
-                if not found:
-                    visual_placeholder.markdown(draw_array(
-                        arr, -1, -1, -1), unsafe_allow_html=True)
-                    logs.append(
-                        f"❌ **Target {target} not found in the array.**")
-                    log_placeholder.markdown(
-                        "<br>".join(logs), unsafe_allow_html=True)
-
-            except ValueError:
-                st.error("Please enter valid integers separated by commas.")
-
-
-# ==========================================
-# 3. KRUSKAL'S ALGORITHM SIMULATOR
-# ==========================================
-elif option == "Kruskal's Algorithm":
-    st.title("Kruskal's Algorithm (Minimum Spanning Tree)")
-    st.markdown(
-        "Finds the Minimum Spanning Tree (MST) of a graph using the greedy approach and a Disjoint Set (Union-Find).")
-
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
-        st.subheader("Graph Edges Input")
-        st.write("Edit the table below to add/remove edges.")
-
-        if 'graph_data' not in st.session_state:
-            st.session_state.graph_data = pd.DataFrame({
-                'Source': ['A', 'A', 'A', 'B', 'C', 'C'],
-                'Target': ['B', 'C', 'D', 'D', 'D', 'B'],
-                'Weight': [10, 6, 5, 15, 4, 3]
-            })
-
-        df = st.data_editor(st.session_state.graph_data,
-                            num_rows="dynamic", use_container_width=True)
-        run_kruskal = st.button("Run Kruskal's Simulation")
-
-        st.markdown("---")
-        st.subheader("Complexity")
-        st.info("""
-        **Time Complexity:** 
-        - O(E log E) or O(E log V) (Sorting edges dictates the time)
-        
-        **Space Complexity:** 
-        - O(V + E) for storing the graph and Union-Find arrays.
-        """)
-
-    with col2:
-        st.subheader("Step-by-Step Visualization")
-        if run_kruskal:
-
-            class DisjointSet:
-                def __init__(self, vertices):
-                    self.parent = {v: v for v in vertices}
-                    self.rank = {v: 0 for v in vertices}
-
-                def find(self, item):
-                    if self.parent[item] == item:
-                        return item
-                    self.parent[item] = self.find(self.parent[item])
-                    return self.parent[item]
-
-                def union(self, x, y):
-                    xroot = self.find(x)
-                    yroot = self.find(y)
-                    if self.rank[xroot] < self.rank[yroot]:
-                        self.parent[xroot] = yroot
-                    elif self.rank[xroot] > self.rank[yroot]:
-                        self.parent[yroot] = xroot
-                    else:
-                        self.parent[yroot] = xroot
-                        self.rank[xroot] += 1
-
-            edges = []
-            vertices = set()
-            for _, row in df.iterrows():
-                u, v, w = str(row['Source']).strip(), str(
-                    row['Target']).strip(), float(row['Weight'])
-                edges.append((u, v, w))
-                vertices.add(u)
-                vertices.add(v)
-
-            G = nx.Graph()
-            for u, v, w in edges:
-                G.add_edge(u, v, weight=w)
-
-            pos = nx.spring_layout(G, seed=42)
-
-            def draw_graph(mst_edges, current_edge=None, cycle_edge=None):
-                fig, ax = plt.subplots(figsize=(6, 4))
-
-                nx.draw_networkx_nodes(
-                    G, pos, node_color='lightblue', node_size=500, ax=ax)
-                nx.draw_networkx_labels(
-                    G, pos, font_size=12, font_weight="bold", ax=ax)
-                nx.draw_networkx_edges(
-                    G, pos, edge_color='#e0e0e0', width=1.5, ax=ax)
-
-                edge_labels = nx.get_edge_attributes(G, 'weight')
-                nx.draw_networkx_edge_labels(
-                    G, pos, edge_labels=edge_labels, ax=ax)
-
-                if mst_edges:
-                    nx.draw_networkx_edges(G, pos, edgelist=[(
-                        u, v) for u, v, _ in mst_edges], edge_color='green', width=3.5, ax=ax)
-
-                if current_edge:
-                    nx.draw_networkx_edges(G, pos, edgelist=[(
-                        current_edge[0], current_edge[1])], edge_color='orange', width=3.5, ax=ax)
-
-                if cycle_edge:
-                    nx.draw_networkx_edges(G, pos, edgelist=[(
-                        cycle_edge[0], cycle_edge[1])], edge_color='red', width=3.5, ax=ax)
-
-                plt.axis('off')
-                return fig
-
-            edges = sorted(edges, key=lambda item: item[2])  # Sort by weight
-            ds = DisjointSet(vertices)
-            mst = []
-            total_cost = 0
-
-            st.markdown("**1. Edges Sorted by Weight:**")
-            st.write([f"{u}-{v} ({w})" for u, v, w in edges])
-
-            graph_placeholder = st.empty()
-            info_placeholder = st.empty()
-
-            graph_placeholder.pyplot(draw_graph([]))
-            time.sleep(1.5)
-
-            step = 1
-            for u, v, w in edges:
-                info_placeholder.markdown(
-                    f"**Step {step}:** Evaluating edge **{u}-{v}** (Weight: {w})")
-                graph_placeholder.pyplot(
-                    draw_graph(mst, current_edge=(u, v, w)))
-                time.sleep(1.5)
-
-                x = ds.find(u)
-                y = ds.find(v)
-
-                if x != y:  # No cycle
-                    ds.union(x, y)
-                    mst.append((u, v, w))
-                    total_cost += w
-                    info_placeholder.markdown(
-                        f"**Step {step}:** ✅ Edge **{u}-{v}** added to MST. No cycle formed.")
-                else:  # Cycle
-                    graph_placeholder.pyplot(
-                        draw_graph(mst, cycle_edge=(u, v, w)))
-                    info_placeholder.markdown(
-                        f"**Step {step}:** ❌ Edge **{u}-{v}** creates a cycle! Discarding.")
-                    time.sleep(1.5)
-
-                graph_placeholder.pyplot(draw_graph(mst))
-                step += 1
-                time.sleep(1)
-
-            st.success(
-                f"**Algorithm Complete! Minimum Spanning Tree Cost = {total_cost}**")
-            st.write("**Final MST Edges:**", [f"{u}-{v}" for u, v, w in mst])
+st.markdown(
+    "<div class='foot'>Part of <a href='https://algorithmcornerbysasha.blogspot.com' target='_blank'>The Weekly Algorithm</a>"
+    " · Design and Analysis of Algorithm</div>",
+    unsafe_allow_html=True,
+)
